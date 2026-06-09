@@ -260,7 +260,7 @@ function UploadView({
             meta={doc.meta}
             uploading={doc.uploading}
             onFile={onDoc}
-            onRemove={handleRemoveDoc}
+            onRemove={onRemoveDoc}
           />
           <UploadZone
             label="Ruleset"
@@ -271,7 +271,7 @@ function UploadView({
             meta={rules.meta}
             uploading={rules.uploading}
             onFile={onRules}
-            onRemove={handleRemoveRules}
+            onRemove={onRemoveRules}
           />
         </div>
 
