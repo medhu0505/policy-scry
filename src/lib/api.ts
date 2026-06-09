@@ -1,10 +1,10 @@
-// API client for ComplianceIQ backend
-export const API_BASE_URL = "http://localhost:8000";
+export const API_BASE_URL = "http://216.179.82.117:8000";
 
 export interface IngestResponse {
   collection_id: string;
   chunk_count?: number;
   rule_count?: number;
+  doc_name?: string;
   [key: string]: unknown;
 }
 
@@ -12,7 +12,7 @@ export interface AuditFinding {
   rule_id: string;
   risk_level: "HIGH" | "MEDIUM" | "LOW" | "PASS";
   conflict_summary: string;
-  confidence: number; // 0-100
+  confidence: number;
   rule_description?: string;
   document_excerpt?: string;
   policy_reference?: string;
@@ -30,22 +30,23 @@ export interface AuditReport {
   medium_count: number;
   low_count: number;
   pass_count: number;
+  agent_reasoning_steps?: string[];
+  elapsed_seconds?: number;
+  model_used?: string;
 }
 
 export interface ReasoningStep {
   timestamp: string;
   message: string;
-  rules_checked?: number;
-  total_rules?: number;
 }
 
 export async function ingestDocument(file: File): Promise<IngestResponse> {
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(
-    `${API_BASE_URL}/ingest/document?doc_type=document`,
-    { method: "POST", body: fd }
-  );
+  const res = await fetch(`${API_BASE_URL}/ingest/document?doc_type=document`, {
+    method: "POST",
+    body: fd,
+  });
   if (!res.ok) throw new Error(`Document ingest failed: ${res.status} ${res.statusText}`);
   return res.json();
 }
@@ -68,61 +69,46 @@ export interface RunAuditArgs {
   ruleset_name: string;
 }
 
-/**
- * Runs the audit. Calls POST /audit to start, then connects to GET /audit
- * which streams agent_reasoning_steps as newline-delimited JSON. Each
- * step is passed to onStep; the final aggregated report resolves the promise.
- */
 export async function runAudit(
   args: RunAuditArgs,
   onStep: (step: ReasoningStep) => void,
 ): Promise<AuditReport> {
-  const postRes = await fetch(`${API_BASE_URL}/audit`, {
+  const res = await fetch(`${API_BASE_URL}/audit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(args),
   });
-  if (!postRes.ok) throw new Error(`Audit start failed: ${postRes.status}`);
+  if (!res.ok) throw new Error(`Audit failed: ${res.status}`);
+  const data = await res.json();
 
-  const streamRes = await fetch(`${API_BASE_URL}/audit`, { method: "GET" });
-  if (!streamRes.ok || !streamRes.body) {
-    throw new Error(`Audit stream failed: ${streamRes.status}`);
-  }
-
-  const reader = streamRes.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let finalReport: AuditReport | null = null;
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (parsed.agent_reasoning_step || parsed.message) {
-          onStep({
-            timestamp: parsed.timestamp ?? new Date().toISOString(),
-            message: parsed.message ?? parsed.agent_reasoning_step,
-            rules_checked: parsed.rules_checked,
-            total_rules: parsed.total_rules,
-          });
-        }
-        if (parsed.report || parsed.findings) {
-          finalReport = (parsed.report ?? parsed) as AuditReport;
-        }
-      } catch {
-        // Non-JSON line — treat as a raw reasoning step
-        onStep({ timestamp: new Date().toISOString(), message: trimmed });
-      }
+  if (data.agent_reasoning_steps) {
+    for (const step of data.agent_reasoning_steps) {
+      onStep({ timestamp: new Date().toISOString(), message: step });
     }
   }
 
-  if (!finalReport) throw new Error("Audit completed but no report was returned");
-  return finalReport;
+  return {
+    doc_name: data.doc_name,
+    ruleset_name: data.ruleset_name,
+    compliance_score: data.summary?.overall_compliance_score ?? 0,
+    total_rules: data.summary?.total_rules_checked ?? 0,
+    high_count: data.summary?.violations_high ?? 0,
+    medium_count: data.summary?.violations_medium ?? 0,
+    low_count: data.summary?.violations_low ?? 0,
+    pass_count: data.summary?.rules_passed ?? 0,
+    findings: (data.violations ?? []).map((v: any) => ({
+      rule_id: v.rule_id,
+      risk_level: v.risk_level,
+      conflict_summary: v.conflict_explanation,
+      confidence: Math.round(v.confidence_score * 100),
+      rule_description: v.rule_description,
+      document_excerpt: v.document_excerpt,
+      policy_reference: v.policy_reference,
+      full_explanation: v.conflict_explanation,
+      suggested_action: v.suggested_action,
+    })),
+    agent_reasoning_steps: data.agent_reasoning_steps,
+    elapsed_seconds: data.elapsed_seconds,
+    model_used: data.model_used,
+  };
 }
