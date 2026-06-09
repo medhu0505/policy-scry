@@ -110,6 +110,16 @@ function ComplianceIQ() {
     }
   }, [doc]);
 
+  const handleRemoveDoc = useCallback(() => {
+    setDoc(emptyIngest);
+    setStatus(computeStatus(emptyIngest, rules));
+  }, [rules]);
+
+  const handleRemoveRules = useCallback(() => {
+    setRules(emptyIngest);
+    setStatus(computeStatus(doc, emptyIngest));
+  }, [doc]);
+
   const canRun = !!(doc.collectionId && rules.collectionId) && !doc.uploading && !rules.uploading;
 
   const handleRun = async () => {
