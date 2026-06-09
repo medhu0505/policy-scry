@@ -189,6 +189,8 @@ function ComplianceIQ() {
           onDoc={handleDoc}
           onRules={handleRules}
           onRun={handleRun}
+          onRemoveDoc={handleRemoveDoc}
+          onRemoveRules={handleRemoveRules}
         />
       )}
       {view === "running" && (
