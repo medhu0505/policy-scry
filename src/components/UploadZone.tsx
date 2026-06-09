@@ -10,6 +10,7 @@ interface Props {
   meta: string | null;
   uploading: boolean;
   onFile: (file: File) => void;
+  onRemove?: () => void;
 }
 
 export function UploadZone({
@@ -21,6 +22,7 @@ export function UploadZone({
   meta,
   uploading,
   onFile,
+  onRemove,
 }: Props) {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,10 +52,12 @@ export function UploadZone({
       onClick={() => inputRef.current?.click()}
       className={[
         "group relative flex h-72 cursor-pointer flex-col items-center justify-center gap-4",
-        "rounded-lg border-2 border-dashed bg-surface/40 px-8 py-10 transition-all",
+        "rounded-lg border-2 border-dashed px-8 py-10 transition-all",
         drag
           ? "border-cyan glow-cyan bg-surface"
-          : "border-border hover:border-cyan/60 hover:bg-surface/70",
+          : file
+            ? "border-success bg-surface/40"
+            : "border-border bg-surface/40 hover:border-cyan/60 hover:bg-surface/70",
       ].join(" ")}
     >
       <input
@@ -64,31 +68,45 @@ export function UploadZone({
         onChange={(e) => handleFiles(e.target.files)}
       />
 
-      <div className="flex h-14 w-14 items-center justify-center rounded-md border border-cyan/30 bg-cyan/5 text-cyan">
-        {file ? <CheckCircle2 className="h-7 w-7" /> : <Icon className="h-7 w-7" />}
-      </div>
-
-      <div className="text-center">
-        <div className="text-mono text-xs uppercase tracking-[0.18em] text-cyan">
-          {label}
-        </div>
-        <div className="mt-2 text-sm text-muted-foreground">{description}</div>
-      </div>
-
       {file ? (
-        <div className="mt-1 w-full max-w-xs rounded border border-border bg-background/60 px-3 py-2 text-center">
-          <div className="text-mono truncate text-xs text-foreground">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-md border border-success/30 bg-success/10 text-success">
+            <CheckCircle2 className="h-7 w-7" />
+          </div>
+          <div className="text-mono max-w-[240px] truncate text-xs text-foreground">
             {file.name}
           </div>
-          <div className="text-mono mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            {uploading ? "Uploading..." : meta ?? `${(file.size / 1024).toFixed(1)} KB`}
+          <div className="text-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {uploading ? "Uploading…" : meta ?? `${(file.size / 1024).toFixed(1)} KB`}
           </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove?.();
+            }}
+            className="text-mono text-[11px] text-danger hover:underline"
+          >
+            Remove
+          </button>
         </div>
       ) : (
-        <div className="text-mono flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-          <UploadCloud className="h-3.5 w-3.5" />
-          Drop file or click to browse
-        </div>
+        <>
+          <div className="flex h-14 w-14 items-center justify-center rounded-md border border-cyan/30 bg-cyan/5 text-cyan">
+            <Icon className="h-7 w-7" />
+          </div>
+
+          <div className="text-center">
+            <div className="text-mono text-xs uppercase tracking-[0.18em] text-cyan">
+              {label}
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground">{description}</div>
+          </div>
+
+          <div className="text-mono flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <UploadCloud className="h-3.5 w-3.5" />
+            Drop file or click to browse
+          </div>
+        </>
       )}
     </div>
   );

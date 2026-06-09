@@ -110,6 +110,16 @@ function ComplianceIQ() {
     }
   }, [doc]);
 
+  const handleRemoveDoc = useCallback(() => {
+    setDoc(emptyIngest);
+    setStatus(computeStatus(emptyIngest, rules));
+  }, [rules]);
+
+  const handleRemoveRules = useCallback(() => {
+    setRules(emptyIngest);
+    setStatus(computeStatus(doc, emptyIngest));
+  }, [doc]);
+
   const canRun = !!(doc.collectionId && rules.collectionId) && !doc.uploading && !rules.uploading;
 
   const handleRun = async () => {
@@ -179,6 +189,8 @@ function ComplianceIQ() {
           onDoc={handleDoc}
           onRules={handleRules}
           onRun={handleRun}
+          onRemoveDoc={handleRemoveDoc}
+          onRemoveRules={handleRemoveRules}
         />
       )}
       {view === "running" && (
@@ -205,6 +217,8 @@ function UploadView({
   onDoc,
   onRules,
   onRun,
+  onRemoveDoc,
+  onRemoveRules,
 }: {
   doc: IngestState;
   rules: IngestState;
@@ -213,6 +227,8 @@ function UploadView({
   onDoc: (f: File) => void;
   onRules: (f: File) => void;
   onRun: () => void;
+  onRemoveDoc: () => void;
+  onRemoveRules: () => void;
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-8 py-12">
@@ -244,6 +260,7 @@ function UploadView({
             meta={doc.meta}
             uploading={doc.uploading}
             onFile={onDoc}
+            onRemove={onRemoveDoc}
           />
           <UploadZone
             label="Ruleset"
@@ -254,6 +271,7 @@ function UploadView({
             meta={rules.meta}
             uploading={rules.uploading}
             onFile={onRules}
+            onRemove={onRemoveRules}
           />
         </div>
 
@@ -264,10 +282,10 @@ function UploadView({
             disabled={!canRun}
             className={[
               "text-mono inline-flex items-center justify-center gap-2 rounded px-10 py-4",
-              "text-sm font-bold uppercase tracking-[0.2em] transition-all",
+              "text-sm font-bold uppercase tracking-[0.2em] transition-all duration-500",
               canRun
                 ? "bg-cyan text-primary-foreground glow-cyan hover:brightness-110"
-                : "cursor-not-allowed border border-border bg-surface/40 text-muted-foreground",
+                : "cursor-not-allowed border border-border bg-surface/40 text-muted-foreground opacity-50",
             ].join(" ")}
           >
             <Play className="h-4 w-4" />
@@ -278,7 +296,9 @@ function UploadView({
             <span
               className={[
                 "inline-block h-1.5 w-1.5 rounded-full",
-                status === "Ready to audit" ? "bg-success" : status.includes("Ingesting") || status.includes("Running") ? "bg-cyan animate-pulse" : "bg-muted-foreground/60",
+                status === "Ready to audit"
+                  ? "bg-success"
+                  : "bg-cyan animate-status-pulse",
               ].join(" ")}
             />
             <span>{status}</span>
