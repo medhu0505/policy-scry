@@ -148,3 +148,12 @@
 @utility animate-blink {
   animation: blink 1s step-end infinite;
 }
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@utility animate-status-pulse {
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
