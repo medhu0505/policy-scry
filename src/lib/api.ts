@@ -1,4 +1,4 @@
-export const API_BASE_URL = "http://216.179.82.117:8000";
+export const API_BASE_URL = "http://4.31.212.69:8000";
 
 export interface IngestResponse {
   collection_id: string;
